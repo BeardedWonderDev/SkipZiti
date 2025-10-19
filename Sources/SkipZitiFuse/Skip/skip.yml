@@ -1,0 +1,23 @@
+# Configuration file for https://skip.tools project
+#
+# Kotlin dependencies and Gradle build options for this module can be configured here
+#build:
+#  contents:
+#    - block: 'dependencies'
+#      contents:
+#        - 'implementation("androidx.compose.runtime:runtime")'
+
+# SkipFuse bridging configuration for SkipZiti.
+skip:
+  mode: native
+  bridging:
+    enabled: true
+    options:
+      - kotlincompat
+
+gradle:
+  dependencies:
+    implementation: |
+      implementation("org.openziti:ziti-android:<version>")
+      implementation("com.goterl:lazysodium-android:5.0.2")
+      implementation("net.java.dev.jna:jna:5.14.0")
