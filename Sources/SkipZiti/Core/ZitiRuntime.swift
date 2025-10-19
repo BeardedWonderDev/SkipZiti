@@ -90,9 +90,9 @@ public actor ZitiRuntime {
         case stopping
     }
 
-    private let configuration: ZitiConfiguration
-    private var state: State = .idle
-    private var observers: [UUID: @Sendable (State) -> Void] = [:]
+    internal let configuration: ZitiConfiguration
+    internal var state: State = .idle
+    internal var observers: [UUID: @Sendable (State) -> Void] = [:]
 
     public init(configuration: ZitiConfiguration) {
         self.configuration = configuration
@@ -140,7 +140,7 @@ public actor ZitiRuntime {
         observers.removeValue(forKey: token)
     }
 
-    private func notifyObservers() {
+    internal func notifyObservers() {
         observers.values.forEach { observer in
             observer(state)
         }

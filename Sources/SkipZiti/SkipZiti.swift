@@ -25,8 +25,8 @@ public enum SkipZiti {
 }
 
 public final class InMemoryIdentityStore: @unchecked Sendable, SecureIdentityStore {
-    private var storage: [String: ZitiIdentityRecord] = [:]
-    private let lock = NSLock()
+    internal var storage: [String: ZitiIdentityRecord] = [:]
+    internal let lock = NSLock()
 
     public init() {}
 

@@ -2,8 +2,8 @@ import Foundation
 import SwiftUI
 
 public struct SkipZitiDiagnosticsView: View {
-    @State private var events: [ZitiClientEvent] = []
-    private let client: ZitiClient
+    @State internal var events: [ZitiClientEvent] = []
+    internal let client: ZitiClient
 
     public init(client: ZitiClient) {
         self.client = client
@@ -23,7 +23,7 @@ public struct SkipZitiDiagnosticsView: View {
         .navigationTitle("SkipZiti Diagnostics")
     }
 
-    private func description(for event: ZitiClientEvent) -> String {
+    internal func description(for event: ZitiClientEvent) -> String {
         switch event {
         case .starting:
             return "Runtime starting…"

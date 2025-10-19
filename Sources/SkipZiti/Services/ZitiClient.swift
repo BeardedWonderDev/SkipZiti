@@ -13,8 +13,8 @@ public struct ZitiServiceDescriptor: Identifiable, Hashable, Sendable {
 }
 
 public struct TunnelChannel: Sendable {
-    private let continuation: AsyncStream<Data>.Continuation
-    private let inbox: AsyncStream<Data>
+    internal let continuation: AsyncStream<Data>.Continuation
+    internal let inbox: AsyncStream<Data>
 
     init(continuation: AsyncStream<Data>.Continuation, inbox: AsyncStream<Data>) {
         self.continuation = continuation
@@ -45,12 +45,12 @@ public enum ZitiClientEvent: Sendable, Equatable {
 public final class ZitiClient: @unchecked Sendable {
     public let configuration: ZitiConfiguration
 
-    private let runtime: ZitiRuntime
-    private let identityManager: ZitiIdentityManager
-    private let eventStream: AsyncStream<ZitiClientEvent>
-    private let eventContinuation: AsyncStream<ZitiClientEvent>.Continuation
+    internal let runtime: ZitiRuntime
+    internal let identityManager: ZitiIdentityManager
+    internal let eventStream: AsyncStream<ZitiClientEvent>
+    internal let eventContinuation: AsyncStream<ZitiClientEvent>.Continuation
 
-    private init(
+    internal init(
         configuration: ZitiConfiguration,
         runtime: ZitiRuntime,
         identityManager: ZitiIdentityManager,

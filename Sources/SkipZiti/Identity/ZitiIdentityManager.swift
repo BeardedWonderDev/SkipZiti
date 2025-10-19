@@ -22,8 +22,8 @@ public protocol ControllerClient: Sendable {
 }
 
 public actor ZitiIdentityManager {
-    private let storage: any SecureIdentityStore
-    private let controller: any ControllerClient
+    internal let storage: any SecureIdentityStore
+    internal let controller: any ControllerClient
 
     public init(storage: any SecureIdentityStore, controller: any ControllerClient) {
         self.storage = storage
@@ -61,8 +61,8 @@ public actor ZitiIdentityManager {
 }
 
 public struct CSRBuilder {
-    private let jwtData: Data
-    private let alias: String
+    internal let jwtData: Data
+    internal let alias: String
 
     public init(jwtData: Data, alias: String) {
         self.jwtData = jwtData
