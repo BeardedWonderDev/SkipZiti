@@ -1,5 +1,4 @@
 import Foundation
-import SkipZitiCore
 
 public struct EnrollmentRequest: Sendable, Hashable {
     public var jwtData: Data

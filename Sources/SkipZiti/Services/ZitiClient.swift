@@ -1,6 +1,4 @@
 import Foundation
-import SkipZitiCore
-import SkipZitiIdentity
 
 public struct ZitiServiceDescriptor: Identifiable, Hashable, Sendable {
     public var id: String

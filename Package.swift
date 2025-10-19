@@ -10,11 +10,7 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .library(name: "SkipZiti", targets: ["SkipZiti"]),
-        .library(name: "SkipZitiCore", targets: ["SkipZitiCore"]),
-        .library(name: "SkipZitiIdentity", targets: ["SkipZitiIdentity"]),
-        .library(name: "SkipZitiServices", targets: ["SkipZitiServices"]),
-        .library(name: "SkipZitiUI", targets: ["SkipZitiUI"])
+        .library(name: "SkipZiti", type: .dynamic, targets: ["SkipZiti"])
     ],
     dependencies: [
         .package(url: "https://source.skip.tools/skip.git", from: "1.6.27"),
@@ -22,52 +18,15 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "SkipZitiCore",
-            dependencies: []
-        ),
-        .target(
-            name: "SkipZitiIdentity",
+            name: "SkipZiti",
             dependencies: [
-                "SkipZitiCore"
-            ]
-        ),
-        .target(
-            name: "SkipZitiServices",
-            dependencies: [
-                "SkipZitiCore",
-                "SkipZitiIdentity"
-            ]
-        ),
-        .target(
-            name: "SkipZitiFuse",
-            dependencies: [
-                "SkipZitiServices",
                 .product(name: "SkipFuse", package: "skip-fuse")
             ],
             resources: [
-                .process("Skip")
+                .process("Resources")
             ],
             plugins: [
                 .plugin(name: "skipstone", package: "skip")
-            ]
-        ),
-        .target(
-            name: "SkipZitiUI",
-            dependencies: [
-                "SkipZitiServices"
-            ],
-            resources: [
-                .process("Resources")
-            ]
-        ),
-        .target(
-            name: "SkipZiti",
-            dependencies: [
-                "SkipZitiCore",
-                "SkipZitiIdentity",
-                "SkipZitiServices",
-                "SkipZitiFuse",
-                "SkipZitiUI"
             ]
         ),
         .testTarget(

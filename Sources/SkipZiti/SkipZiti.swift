@@ -1,7 +1,4 @@
 import Foundation
-import SkipZitiCore
-import SkipZitiIdentity
-import SkipZitiServices
 
 public typealias SkipZitiIdentityRecord = ZitiIdentityRecord
 public typealias SkipZitiIdentityPayload = ZitiIdentityPayload

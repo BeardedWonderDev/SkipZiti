@@ -1,6 +1,5 @@
 import Foundation
 import SwiftUI
-import SkipZitiServices
 
 public struct SkipZitiDiagnosticsView: View {
     @State private var events: [ZitiClientEvent] = []
