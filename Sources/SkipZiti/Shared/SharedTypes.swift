@@ -1,3 +1,4 @@
+#if !SKIP_BRIDGE
 import Foundation
 
 public enum SkipZitiError: Error, Equatable, Sendable {
@@ -89,6 +90,8 @@ public struct SkipZitiStringMap: Sendable, Equatable, Hashable {
             hasher.combine(value)
         }
     }
+
+    internal func toDictionary() -> [String: String] { storage }
 }
 
 public struct SkipZitiConfiguration: Sendable {
@@ -499,3 +502,5 @@ public protocol SkipZitiPlatformBridge: Sendable {
     func revoke(alias: String) async throws
     func cachedIdentities() async throws -> [SkipZitiIdentityRecord]
 }
+
+#endif

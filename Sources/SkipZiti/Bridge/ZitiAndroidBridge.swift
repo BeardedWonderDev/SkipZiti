@@ -1,3 +1,4 @@
+#if !SKIP_BRIDGE
 import Foundation
 
 #if SKIP
@@ -432,7 +433,7 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
         return contexts
     }
 }
-#elseif !SKIP_BRIDGE
+#else
 public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
     public init(seamless: Bool = true) {}
 
@@ -454,4 +455,5 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
         []
     }
 }
+#endif
 #endif

@@ -1,3 +1,4 @@
+#if !SKIP_BRIDGE
 import Foundation
 
 public final class SkipZitiClient: @unchecked Sendable {
@@ -96,3 +97,4 @@ public final class SkipZitiClient: @unchecked Sendable {
         }
     }
 }
+#endif

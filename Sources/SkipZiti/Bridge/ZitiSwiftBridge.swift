@@ -1,3 +1,4 @@
+#if !SKIP_BRIDGE
 import Foundation
 
 #if canImport(Ziti)
@@ -469,4 +470,5 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
         []
     }
 }
+#endif
 #endif

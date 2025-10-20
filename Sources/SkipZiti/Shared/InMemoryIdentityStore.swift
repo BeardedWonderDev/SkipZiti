@@ -1,3 +1,4 @@
+#if !SKIP_BRIDGE
 import Foundation
 
 public final class SkipZitiInMemoryIdentityStore: SkipZitiIdentityStore, @unchecked Sendable {
@@ -25,3 +26,4 @@ public final class SkipZitiInMemoryIdentityStore: SkipZitiIdentityStore, @unchec
         lock.unlock()
     }
 }
+#endif

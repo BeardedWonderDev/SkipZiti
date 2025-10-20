@@ -1,3 +1,4 @@
+#if !SKIP_BRIDGE
 import Foundation
 
 public enum SkipZiti {
@@ -23,7 +24,7 @@ public enum SkipZiti {
     }
     #endif
 
-    #if SKIP || SKIP_BRIDGE
+    #if SKIP
     public static func bootstrapUsingAndroidSDK(
         controllerURL: URL,
         logLevel: SkipZitiLogLevel = .info,
@@ -72,4 +73,6 @@ public extension SkipZiti {
         return try await SkipZitiClient.bootstrap(configuration: configuration, bridge: bridge, identityStore: identityStore)
     }
 }
+#endif
+
 #endif

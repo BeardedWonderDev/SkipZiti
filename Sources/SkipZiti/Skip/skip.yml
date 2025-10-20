@@ -9,16 +9,13 @@
 
 # SkipFuse bridging configuration for SkipZiti.
 skip:
-  mode: native
-  bridging:
-    enabled: true
-    options:
-      - kotlincompat
+  mode: 'transpiled'
+  bridging: true
 
-gradle:
-  dependencies:
-    implementation: |
-      implementation(platform("org.openziti:ziti-bom:<version>"))
-      implementation("org.openziti:ziti-android")
-      implementation("com.goterl:lazysodium-android:5.0.2")
-      implementation("net.java.dev.jna:jna:5.14.0")
+build:
+  contents:
+    - block: 'dependencies'
+      contents:
+        - 'implementation("org.openziti:ziti-android:0.30.0")'
+        - 'implementation("com.goterl:lazysodium-android:5.0.2")'
+        - 'implementation("net.java.dev.jna:jna:5.14.0")'
