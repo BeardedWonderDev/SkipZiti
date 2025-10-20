@@ -24,7 +24,7 @@ public enum SkipZiti {
     }
     #endif
 
-    #if SKIP
+    #if SKIP && os(Android)
     public static func bootstrapUsingAndroidSDK(
         controllerURL: URL,
         logLevel: SkipZitiLogLevel = .info,

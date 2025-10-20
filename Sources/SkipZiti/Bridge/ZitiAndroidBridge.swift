@@ -1,7 +1,7 @@
 #if !SKIP_BRIDGE
 import Foundation
 
-#if SKIP
+#if SKIP && os(Android)
 import skip.foundation
 import SkipLib
 import org.openziti.android.Ziti
