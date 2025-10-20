@@ -46,7 +46,7 @@ final class ServiceDescriptorTests: XCTestCase {
         XCTAssertEqual(descriptor.intercepts.count, 1)
         XCTAssertEqual(descriptor.intercepts.first?.addresses, ["example.com"])
         XCTAssertEqual(descriptor.postureChecks.first?.queries.first?.id, "pq-1")
-        XCTAssertEqual(descriptor.attributes["rawService"], "{\"name\":\"Demo\"}")
+        XCTAssertEqual(descriptor.attributes.value(forKey: "rawService"), "{\"name\":\"Demo\"}")
     }
 
     func testServiceUpdateEquatable() {

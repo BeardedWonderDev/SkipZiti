@@ -273,12 +273,11 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
         let intercepts = intercepts(from: service.interceptConfig())
         let postureChecks = postureChecks(from: service)
 
-        var attributes: [String: String] = [
-            "platform": "android",
-            "controller": defaultController.absoluteString
-        ]
+        var attributes = SkipZitiStringMap()
+        attributes.setValue("android", forKey: "platform")
+        attributes.setValue(defaultController.absoluteString, forKey: "controller")
         if let strategy = service.getTerminatorStrategy() {
-            attributes["terminatorStrategy"] = strategy
+            attributes.setValue(strategy, forKey: "terminatorStrategy")
         }
         if let rawConfigs = service.getConfig() {
             let keyIterator = rawConfigs.keySet().iterator()
@@ -289,10 +288,10 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
                 }
             }
             if !keys.isEmpty {
-                attributes["configKeys"] = keys.joined(separator: ",")
+                attributes.setValue(keys.joined(separator: ","), forKey: "configKeys")
             }
         }
-        attributes["rawDescription"] = service.toString()
+        attributes.setValue(service.toString(), forKey: "rawDescription")
 
         return SkipZitiServiceDescriptor(
             name: name,
@@ -401,7 +400,7 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
             controllerURL: defaultController,
             fingerprint: Data(alias.utf8).base64EncodedString(),
             platformAlias: alias,
-            metadata: [:]
+            metadata: SkipZitiStringMap()
         )
     }
 
@@ -410,8 +409,8 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
         let controllerURL = URL(string: controllerString) ?? defaultController
         let fingerprint = Data(context.name().utf8).base64EncodedString()
         var metadata = normalizedStatusMetadata(for: context.getStatus())
-        metadata["controller"] = controllerURL.absoluteString
-        metadata["serviceCount"] = "\(serviceCount(for: context.name()))"
+        metadata.setValue(controllerURL.absoluteString, forKey: "controller")
+        metadata.setValue("\(serviceCount(for: context.name()))", forKey: "serviceCount")
         return SkipZitiIdentityRecord(
             alias: context.name(),
             controllerURL: controllerURL,
@@ -427,15 +426,20 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
         emitLock.unlock()
     }
 
-    private func normalizedStatusMetadata(for status: CoreZitiContext.Status?) -> [String: String] {
-        guard let status else { return ["statusCode": "unknown", "statusDisplay": "Unknown"] }
+    private func normalizedStatusMetadata(for status: CoreZitiContext.Status?) -> SkipZitiStringMap {
+        guard let status else {
+            var map = SkipZitiStringMap()
+            map.setValue("unknown", forKey: "statusCode")
+            map.setValue("Unknown", forKey: "statusDisplay")
+            return map
+        }
         let raw = status.toString()
         let normalized = raw.replacingOccurrences(of: " ", with: "_").lowercased()
-        return [
-            "statusCode": raw,
-            "statusDisplay": raw,
-            "statusNormalized": normalized
-        ]
+        var map = SkipZitiStringMap()
+        map.setValue(raw, forKey: "statusCode")
+        map.setValue(raw, forKey: "statusDisplay")
+        map.setValue(normalized, forKey: "statusNormalized")
+        return map
     }
 
     private func serviceCount(for alias: String) -> Int {

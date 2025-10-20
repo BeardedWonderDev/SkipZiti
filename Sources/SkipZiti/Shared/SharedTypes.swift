@@ -15,16 +15,106 @@ public enum SkipZitiLogLevel: String, Sendable {
     case error
 }
 
+public struct SkipZitiKeyValue: Sendable, Equatable {
+    public var key: String
+    public var value: String
+
+    public init(key: String, value: String) {
+        self.key = key
+        self.value = value
+    }
+}
+
+public struct SkipZitiStringMap: Sendable, Equatable, Hashable {
+    private var storage: [String: String]
+
+    public init(entries: [SkipZitiKeyValue] = []) {
+        var dictionary: [String: String] = [:]
+        for entry in entries {
+            dictionary[entry.key] = entry.value
+        }
+        self.storage = dictionary
+    }
+
+    public init(dictionary: [String: String]) {
+        self.storage = dictionary
+    }
+
+    public var entries: [SkipZitiKeyValue] {
+        get {
+            storage
+                .sorted { $0.key < $1.key }
+                .map { SkipZitiKeyValue(key: $0.key, value: $0.value) }
+        }
+        set {
+            var dictionary: [String: String] = [:]
+            for entry in newValue {
+                dictionary[entry.key] = entry.value
+            }
+            storage = dictionary
+        }
+    }
+
+    public mutating func merge(_ dictionary: [String: String]) {
+        for (key, value) in dictionary {
+            storage[key] = value
+        }
+    }
+
+    public mutating func merge(_ other: SkipZitiStringMap) {
+        merge(other.storage)
+    }
+
+    public func value(forKey key: String) -> String? {
+        storage[key]
+    }
+
+    public mutating func setValue(_ value: String?, forKey key: String) {
+        if let value {
+            storage[key] = value
+        } else {
+            storage.removeValue(forKey: key)
+        }
+    }
+
+    public mutating func removeValue(forKey key: String) {
+        storage.removeValue(forKey: key)
+    }
+
+    public func contains(_ key: String) -> Bool {
+        storage[key] != nil
+    }
+
+    internal var dictionaryRepresentation: [String: String] { storage }
+
+    public static func == (lhs: SkipZitiStringMap, rhs: SkipZitiStringMap) -> Bool {
+        lhs.storage == rhs.storage
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        for (key, value) in storage.sorted(by: { $0.key < $1.key }) {
+            hasher.combine(key)
+            hasher.combine(value)
+        }
+    }
+}
+
 public struct SkipZitiConfiguration: Sendable {
     public var controllerURL: URL
     public var logLevel: SkipZitiLogLevel
-    public var metadata: [String: String]
+    public var metadata: SkipZitiStringMap
 
-    public init(controllerURL: URL, logLevel: SkipZitiLogLevel = .info, metadata: [String: String]? = nil) {
+    public init(controllerURL: URL, logLevel: SkipZitiLogLevel = .info, metadata: SkipZitiStringMap = SkipZitiStringMap()) {
         self.controllerURL = controllerURL
         self.logLevel = logLevel
-        self.metadata = metadata ?? [:]
+        self.metadata = metadata
     }
+
+    #if !SKIP
+    public init(controllerURL: URL, logLevel: SkipZitiLogLevel = .info, metadata: [String: String]? = nil) {
+        self.init(controllerURL: controllerURL, logLevel: logLevel, metadata: SkipZitiStringMap(dictionary: metadata ?? [:]))
+    }
+    #endif
 }
 
 public protocol SkipZitiIdentityStore: Sendable {
@@ -39,8 +129,25 @@ public struct SkipZitiIdentityRecord: Sendable, Equatable, Hashable {
     public var fingerprint: String
     public var enrolledAt: Date
     public var platformAlias: String?
-    public var metadata: [String: String]
+    public var metadata: SkipZitiStringMap
 
+    public init(
+        alias: String,
+        controllerURL: URL,
+        fingerprint: String,
+        enrolledAt: Date? = nil,
+        platformAlias: String? = nil,
+        metadata: SkipZitiStringMap = SkipZitiStringMap()
+    ) {
+        self.alias = alias
+        self.controllerURL = controllerURL
+        self.fingerprint = fingerprint
+        self.enrolledAt = enrolledAt ?? Date()
+        self.platformAlias = platformAlias
+        self.metadata = metadata
+    }
+
+    #if !SKIP
     public init(
         alias: String,
         controllerURL: URL,
@@ -49,13 +156,16 @@ public struct SkipZitiIdentityRecord: Sendable, Equatable, Hashable {
         platformAlias: String? = nil,
         metadata: [String: String]? = nil
     ) {
-        self.alias = alias
-        self.controllerURL = controllerURL
-        self.fingerprint = fingerprint
-        self.enrolledAt = enrolledAt ?? Date()
-        self.platformAlias = platformAlias
-        self.metadata = metadata ?? [:]
+        self.init(
+            alias: alias,
+            controllerURL: controllerURL,
+            fingerprint: fingerprint,
+            enrolledAt: enrolledAt,
+            platformAlias: platformAlias,
+            metadata: SkipZitiStringMap(dictionary: metadata ?? [:])
+        )
     }
+    #endif
 }
 
 public enum SkipZitiClientEvent: Sendable, Equatable {
@@ -163,8 +273,27 @@ public struct SkipZitiServiceDescriptor: Sendable, Equatable {
     public var permissions: SkipZitiServicePermissions
     public var intercepts: [SkipZitiServiceIntercept]
     public var postureChecks: [SkipZitiPostureCheckSet]
-    public var attributes: [String: String]
+    public var attributes: SkipZitiStringMap
 
+    public init(
+        name: String,
+        identifier: String,
+        isEncrypted: Bool,
+        permissions: SkipZitiServicePermissions,
+        intercepts: [SkipZitiServiceIntercept],
+        postureChecks: [SkipZitiPostureCheckSet],
+        attributes: SkipZitiStringMap = SkipZitiStringMap()
+    ) {
+        self.name = name
+        self.identifier = identifier
+        self.isEncrypted = isEncrypted
+        self.permissions = permissions
+        self.intercepts = intercepts
+        self.postureChecks = postureChecks
+        self.attributes = attributes
+    }
+
+    #if !SKIP
     public init(
         name: String,
         identifier: String,
@@ -174,14 +303,17 @@ public struct SkipZitiServiceDescriptor: Sendable, Equatable {
         postureChecks: [SkipZitiPostureCheckSet],
         attributes: [String: String]? = nil
     ) {
-        self.name = name
-        self.identifier = identifier
-        self.isEncrypted = isEncrypted
-        self.permissions = permissions
-        self.intercepts = intercepts
-        self.postureChecks = postureChecks
-        self.attributes = attributes ?? [:]
+        self.init(
+            name: name,
+            identifier: identifier,
+            isEncrypted: isEncrypted,
+            permissions: permissions,
+            intercepts: intercepts,
+            postureChecks: postureChecks,
+            attributes: SkipZitiStringMap(dictionary: attributes ?? [:])
+        )
     }
+    #endif
 }
 
 public struct SkipZitiServiceUpdate: Sendable, Equatable {
@@ -293,8 +425,27 @@ public struct SkipZitiServiceSummary: Sendable, Equatable {
     public var permFlags: Int64
     public var intercepts: [Intercept]
     public var postureChecks: [SkipZitiPostureCheckSet]
-    public var attributes: [String: String]
+    public var attributes: SkipZitiStringMap
 
+    public init(
+        name: String,
+        identifier: String,
+        isEncrypted: Bool,
+        permFlags: Int64,
+        intercepts: [Intercept],
+        postureChecks: [SkipZitiPostureCheckSet],
+        attributes: SkipZitiStringMap = SkipZitiStringMap()
+    ) {
+        self.name = name
+        self.identifier = identifier
+        self.isEncrypted = isEncrypted
+        self.permFlags = permFlags
+        self.intercepts = intercepts
+        self.postureChecks = postureChecks
+        self.attributes = attributes
+    }
+
+    #if !SKIP
     public init(
         name: String,
         identifier: String,
@@ -304,14 +455,17 @@ public struct SkipZitiServiceSummary: Sendable, Equatable {
         postureChecks: [SkipZitiPostureCheckSet],
         attributes: [String: String]? = nil
     ) {
-        self.name = name
-        self.identifier = identifier
-        self.isEncrypted = isEncrypted
-        self.permFlags = permFlags
-        self.intercepts = intercepts
-        self.postureChecks = postureChecks
-        self.attributes = attributes ?? [:]
+        self.init(
+            name: name,
+            identifier: identifier,
+            isEncrypted: isEncrypted,
+            permFlags: permFlags,
+            intercepts: intercepts,
+            postureChecks: postureChecks,
+            attributes: SkipZitiStringMap(dictionary: attributes ?? [:])
+        )
     }
+    #endif
 }
 
 public extension SkipZitiServiceDescriptor {

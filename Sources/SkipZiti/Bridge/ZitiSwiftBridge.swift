@@ -19,7 +19,7 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
     }
 
     public func start(configuration: SkipZitiConfiguration, emit: @escaping (SkipZitiClientEvent) -> Void) async throws {
-        guard let identityPath = configuration.metadata["identityFilePath"] else {
+        guard let identityPath = configuration.metadata.value(forKey: "identityFilePath") else {
             throw SkipZitiError.runtimeFailure(reason: "metadata[identityFilePath] is required for the Swift bridge")
         }
 
@@ -88,7 +88,7 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
             }
         }
 
-        if let outputDirectory = configuration.metadata["identityOutputDirectory"] {
+        if let outputDirectory = configuration.metadata.value(forKey: "identityOutputDirectory") {
             let directoryURL = URL(fileURLWithPath: outputDirectory)
             try? FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
             let outputURL = directoryURL.appendingPathComponent("\(identity.id).zid")
@@ -201,21 +201,21 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
         let intercepts = interceptSummary(from: service)
         let postureChecks = postureCheckSets(from: service.postureQuerySets)
 
-        var attributes: [String: String] = [:]
+        var attributes = SkipZitiStringMap()
         if let client = service.tunnelClientConfigV1, let encoded = encodeAsJSON(client) {
-            attributes["tunnelClientConfig"] = encoded
+            attributes.setValue(encoded, forKey: "tunnelClientConfig")
         }
         if let server = service.tunnelServerConfigV1, let encoded = encodeAsJSON(server) {
-            attributes["tunnelServerConfig"] = encoded
+            attributes.setValue(encoded, forKey: "tunnelServerConfig")
         }
         if let url = service.urlClientConfigV1, let encoded = encodeAsJSON(url) {
-            attributes["urlClientConfig"] = encoded
+            attributes.setValue(encoded, forKey: "urlClientConfig")
         }
         if let host = service.hostConfigV1, let encoded = encodeAsJSON(host) {
-            attributes["hostConfig"] = encoded
+            attributes.setValue(encoded, forKey: "hostConfig")
         }
         if let raw = encodeAsJSON(service) {
-            attributes["rawService"] = raw
+            attributes.setValue(raw, forKey: "rawService")
         }
 
         let summary = SkipZitiServiceSummary(
@@ -277,14 +277,14 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
             fingerprintSource = Data()
         }
 
-        let metadata: [String: String] = {
+        let metadata: SkipZitiStringMap = {
             serviceCacheLock.lock()
             defer { serviceCacheLock.unlock() }
             let count = serviceCache.count
-            return [
-                "bridgeIdentityName": identityName,
-                "knownServiceCount": "\(count)"
-            ]
+            var map = SkipZitiStringMap()
+            map.setValue(identityName, forKey: "bridgeIdentityName")
+            map.setValue("\(count)", forKey: "knownServiceCount")
+            return map
         }()
 
         return SkipZitiIdentityRecord(
@@ -349,13 +349,13 @@ private final class BridgePostureChecks: ZitiPostureChecks {
     ) {
         self.aliasProvider = aliasProvider
         self.emitter = emitter
-        self.macAddresses = BridgePostureChecks.parseList(configuration.metadata["posture.macAddresses"])
-        self.domain = configuration.metadata["posture.domain"]
+        self.macAddresses = BridgePostureChecks.parseList(configuration.metadata.value(forKey: "posture.macAddresses"))
+        self.domain = configuration.metadata.value(forKey: "posture.domain")
         let osInfo = BridgePostureChecks.resolveOSInfo(metadata: configuration.metadata)
         self.osType = osInfo.type
         self.osVersion = osInfo.version
         self.osBuild = osInfo.build
-        self.processes = BridgePostureChecks.parseProcesses(configuration.metadata["posture.processes"])
+        self.processes = BridgePostureChecks.parseProcesses(configuration.metadata.value(forKey: "posture.processes"))
 
         super.init()
 
@@ -423,7 +423,7 @@ private final class BridgePostureChecks: ZitiPostureChecks {
         return Dictionary(uniqueKeysWithValues: decoded.map { ($0.path, $0) })
     }
 
-    private static func resolveOSInfo(metadata: [String: String]) -> (type: String, version: String, build: String?) {
+    private static func resolveOSInfo(metadata: SkipZitiStringMap) -> (type: String, version: String, build: String?) {
         let detected = ProcessInfo.processInfo.operatingSystemVersion
         let defaultVersion = "\(detected.majorVersion).\(detected.minorVersion).\(detected.patchVersion)"
         let type: String
@@ -439,9 +439,9 @@ private final class BridgePostureChecks: ZitiPostureChecks {
         type = "AppleOS"
         #endif
 
-        let resolvedType = metadata["posture.os.type"] ?? type
-        let resolvedVersion = metadata["posture.os.version"] ?? defaultVersion
-        let resolvedBuild = metadata["posture.os.build"]
+        let resolvedType = metadata.value(forKey: "posture.os.type") ?? type
+        let resolvedVersion = metadata.value(forKey: "posture.os.version") ?? defaultVersion
+        let resolvedBuild = metadata.value(forKey: "posture.os.build")
         return (resolvedType, resolvedVersion, resolvedBuild)
     }
 }

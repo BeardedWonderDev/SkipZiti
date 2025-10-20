@@ -309,7 +309,7 @@ jobs:
 ---
 
 ## 12. Next Actions
-1. **Resolve Skip bridging failures:** Replace dictionary/iterator patterns in `SharedTypes` and `ZitiAndroidBridge` with Skip-compatible helpers so Kotlin transpilation succeeds (`:SkipZiti:compileDebugKotlin`).
+1. **Resolve Skip bridging failures (in progress):** Replace raw collection patterns with Skip-compatible helpers. `SharedTypes` now exposes `SkipZitiStringMap` instead of `[String: String]`; the remaining follow-up is to swap the ad-hoc Java iterators in `ZitiAndroidBridge` for Skip-aware iteration helpers so the Kotlin step clears `:SkipZiti:compileDebugKotlin`.
 2. **Restore parity pipeline:** Once bridging compiles, re-run and stabilize `skip test`, including Gradle harness execution under `XCSkipTests`.
 3. **Add automated bridge coverage:** Introduce Swift unit tests for Apple service/posture emission and Android metadata mapping; follow up with Gradle/Robolectric smoke suites.
 4. **Document metadata contracts:** Capture posture and identity metadata requirements (e.g., `identityFilePath`, posture hints) in docs and inline comments.
