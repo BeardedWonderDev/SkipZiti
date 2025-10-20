@@ -35,20 +35,18 @@ skip checkup --native
 ## Building & Testing
 
 ```bash
-# Build Apple targets
+# Build Apple targets (succeeds)
 swift build
 
-# Run Swift unit tests
-swift test        # currently fails because the transpiled Kotlin step fails
-
-# Build Android artefacts (transpiled Kotlin only)
+# Build Android artefacts via Skip (succeeds)
 skip android build
 
-# Run parity tests (Swift + Kotlin) – currently fails during :SkipZiti:compileDebugKotlin
+# Run Swift + Kotlin parity tests (fails today during Kotlin compile)
+swift test
 skip test --plain
 ```
 
-Known failure: `skip test` and `swift test` abort during the Kotlin compile phase with messages such as `Argument type mismatch: actual type is 'Dictionary<String, String>', but 'Map<String, String>' was expected`. Resolving these requires refactoring the Swift collections/iterators in the shared layer and Android bridge to use Skip-compatible helpers.
+Known failures: the Kotlin unit-test compile step now resolves Skip support modules but still fails because the generated test stubs reference APIs that Skip’s Kotlin translator can’t infer (e.g. `ProcessInfo.processInfo`, `Int.max`, and `XCTestCase`). Fixing this requires adjusting the test scaffolding or Skip transpiler configuration so the Kotlin harness can build.
 
 ---
 
