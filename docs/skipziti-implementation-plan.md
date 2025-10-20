@@ -309,9 +309,9 @@ jobs:
 ---
 
 ## 12. Next Actions
-1. **Resolve remaining Skip bridging failures (in progress):** Dictionary usage now routes through `SkipZitiStringMap`, but the Android bridge still enumerates Java iterators directly. Replace those loops with Skip-provided collection helpers so the Kotlin transpiler accepts `ZitiAndroidBridge.swift` and clears `:SkipZiti:compileDebugKotlin`.
-2. **Restore parity pipeline:** Once the Kotlin compilation unblocks, re-run and stabilize `skip test`, including Gradle harness execution under `XCSkipTests`.
-3. **Add automated bridge coverage:** Introduce Swift unit tests for Apple service/posture emission and Android metadata mapping; follow up with Gradle/Robolectric smoke suites.
+1. **Unblock Kotlin parity tests (in progress):** Collection/iterator bridging is complete, but `swift test`/`skip test` still fail because generated Kotlin test shims reference APIs we don’t import (e.g., `ProcessInfo`, `XCTestCase`, `Int.max`). Align the test scaffolding (`XCSkipTests`, module presence checks) and Gradle dependencies so the transpiled tests compile under Robolectric.
+2. **Restore parity pipeline:** Once Kotlin compilation succeeds, re-run and stabilize `skip test`, including Gradle harness execution under `XCSkipTests`, and capture logs for the implementation record.
+3. **Add automated bridge coverage:** Introduce Swift unit tests for Apple service/posture emission and Android metadata mapping; follow up with Gradle/Robolectric smoke suites once parity is green.
 4. **Document metadata contracts:** Capture posture and identity metadata requirements (e.g., `identityFilePath`, posture hints) in docs and inline comments.
 5. **Plan persistent storage & diagnostics:** Design follow-up stories for secure identity storage beyond memory and the deferred diagnostics UI once the event surface is stable.
 6. **Monitor Darwin toolchain linkage:** Keep the profile-runtime linker workaround in place and document any upstream Skip tooling updates that eliminate the need for manual flags.
