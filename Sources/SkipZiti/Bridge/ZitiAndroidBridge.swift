@@ -104,25 +104,22 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
     }
 
     public func revoke(alias: String) async throws {
-        let iterator = CoreZitiSDK.getContexts().iterator()
-        while iterator.hasNext() {
-            if let ctx = iterator.next(), ctx.name() == alias {
-                AndroidZitiSDK.deleteIdentity(ctx)
-                let removedDescriptors = detachServiceObserver(forAlias: alias)
-                if !removedDescriptors.isEmpty {
-                    let update = SkipZitiServiceUpdate(
-                        identityAlias: alias,
-                        changeSource: .delta,
-                        added: [],
-                        removed: removedDescriptors,
-                        changed: []
-                    )
-                    publish(.serviceUpdate(update))
-                }
-                return
-            }
+        guard let context = allContexts().first(where: { $0.name() == alias }) else {
+            throw SkipZitiError.storageFailure(reason: "Identity \(alias) not found")
         }
-        throw SkipZitiError.storageFailure(reason: "Identity \(alias) not found")
+
+        AndroidZitiSDK.deleteIdentity(context)
+        let removedDescriptors = detachServiceObserver(forAlias: alias)
+        if !removedDescriptors.isEmpty {
+            let update = SkipZitiServiceUpdate(
+                identityAlias: alias,
+                changeSource: .delta,
+                added: [],
+                removed: removedDescriptors,
+                changed: []
+            )
+            publish(.serviceUpdate(update))
+        }
     }
 
     public func shutdown() async {
@@ -146,11 +143,8 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
     }
 
     private func attachServiceObservers(defaultController: URL) {
-        let iterator = CoreZitiSDK.getContexts().iterator()
-        while iterator.hasNext() {
-            if let ctx = iterator.next() {
-                attachServiceObserver(for: ctx, defaultController: defaultController)
-            }
+        allContexts().forEach { context in
+            attachServiceObserver(for: context, defaultController: defaultController)
         }
     }
 
@@ -185,24 +179,11 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
     }
 
     private func context(forAlias alias: String) -> CoreZitiContext? {
-        let iterator = CoreZitiSDK.getContexts().iterator()
-        while iterator.hasNext() {
-            if let ctx = iterator.next(), ctx.name() == alias {
-                return ctx
-            }
-        }
-        return nil
+        allContexts().first { $0.name() == alias }
     }
 
     private func currentRecords(defaultController: URL) -> [SkipZitiIdentityRecord] {
-        var records: [SkipZitiIdentityRecord] = []
-        let iterator = CoreZitiSDK.getContexts().iterator()
-        while iterator.hasNext() {
-            if let ctx = iterator.next() {
-                records.append(record(from: ctx, defaultController: defaultController))
-            }
-        }
-        return records
+        allContexts().map { record(from: $0, defaultController: defaultController) }
     }
 
     private func processServiceEvent(_ event: CoreZitiServiceEvent, context: CoreZitiContext, defaultController: URL) {
@@ -260,13 +241,11 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
         var canDial = false
         var canBind = false
         if let permissionsList = service.getPermissions() {
-            let permissionsIterator = permissionsList.iterator()
-            while permissionsIterator.hasNext() {
-                if let permission = permissionsIterator.next() {
-                    let value = String(describing: permission).lowercased()
-                    if value.contains("dial") { canDial = true }
-                    if value.contains("bind") { canBind = true }
-                }
+            permissionsList.forEach { permission in
+                guard let permission else { return }
+                let value = String(describing: permission).lowercased()
+                if value.contains("dial") { canDial = true }
+                if value.contains("bind") { canBind = true }
             }
         }
 
@@ -282,10 +261,9 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
             attributes.merge(SkipZitiStringMap(dictionary: ["terminatorStrategy": strategy]))
         }
         if let rawConfigs = service.getConfig() {
-            let keyIterator = rawConfigs.keySet().iterator()
             var keys: [String] = []
-            while keyIterator.hasNext() {
-                if let key = keyIterator.next() as? String {
+            rawConfigs.keySet().forEach { key in
+                if let key = key as? String {
                     keys.append(key)
                 }
             }
@@ -311,31 +289,25 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
 
         var protocols: [String] = []
         if let set = config.getProtocols() {
-            let iterator = set.iterator()
-            while iterator.hasNext() {
-                if let value = iterator.next() {
-                    protocols.append(String(describing: value))
-                }
+            set.forEach { value in
+                guard let value else { return }
+                protocols.append(String(describing: value))
             }
         }
 
         var addresses: [String] = []
         if let set = config.getAddresses() {
-            let iterator = set.iterator()
-            while iterator.hasNext() {
-                if let value = iterator.next() {
-                    addresses.append(String(describing: value))
-                }
+            set.forEach { value in
+                guard let value else { return }
+                addresses.append(String(describing: value))
             }
         }
 
         var portRanges: [SkipZitiPortRange] = []
         if let ranges = config.getPortRanges() {
-            let iterator = ranges.iterator()
-            while iterator.hasNext() {
-                if let range = iterator.next() as? AndroidPortRange {
-                    portRanges.append(SkipZitiPortRange(lowerBound: Int(range.getLow()), upperBound: Int(range.getHigh())))
-                }
+            ranges.forEach { range in
+                guard let range = range as? AndroidPortRange else { return }
+                portRanges.append(SkipZitiPortRange(lowerBound: Int(range.getLow()), upperBound: Int(range.getHigh())))
             }
         }
 
@@ -357,26 +329,23 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
     private func postureChecks(from service: AndroidService) -> [SkipZitiPostureCheckSet] {
         guard let postureSets = service.getPostureQueries() else { return [] }
         var results: [SkipZitiPostureCheckSet] = []
-        let setIterator = postureSets.iterator()
-        while setIterator.hasNext() {
-            guard let set = setIterator.next() as? AndroidPostureQuerySet else { continue }
+        postureSets.forEach { element in
+            guard let set = element as? AndroidPostureQuerySet else { return }
             var queries: [SkipZitiPostureQuery] = []
             if let postureList = set.getPostureQueries() {
-                let queryIterator = postureList.iterator()
-                while queryIterator.hasNext() {
-                    if let query = queryIterator.next() as? AndroidPostureQuery {
-                        let timeoutRemainingValue = query.getTimeoutRemaining()
-                        let timeoutRemaining = timeoutRemainingValue == nil ? nil : Int64(timeoutRemainingValue!.longValue)
-                        queries.append(
-                            SkipZitiPostureQuery(
-                                id: query.getId() ?? "",
-                                type: String(describing: query.getQueryType() ?? ""),
-                                isPassing: query.getIsPassing()?.boolValue ?? false,
-                                timeout: Int64(query.getTimeout()?.longValue ?? 0),
-                                timeoutRemaining: timeoutRemaining
-                            )
+                postureList.forEach { queryElement in
+                    guard let query = queryElement as? AndroidPostureQuery else { return }
+                    let timeoutRemainingValue = query.getTimeoutRemaining()
+                    let timeoutRemaining = timeoutRemainingValue == nil ? nil : Int64(timeoutRemainingValue!.longValue)
+                    queries.append(
+                        SkipZitiPostureQuery(
+                            id: query.getId() ?? "",
+                            type: String(describing: query.getQueryType() ?? ""),
+                            isPassing: query.getIsPassing()?.boolValue ?? false,
+                            timeout: Int64(query.getTimeout()?.longValue ?? 0),
+                            timeoutRemaining: timeoutRemaining
                         )
-                    }
+                    )
                 }
             }
             let postureSet = SkipZitiPostureCheckSet(
@@ -391,11 +360,8 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
     }
 
     private func record(forAlias alias: String, defaultController: URL) -> SkipZitiIdentityRecord {
-        let iterator = CoreZitiSDK.getContexts().iterator()
-        while iterator.hasNext() {
-            if let ctx = iterator.next(), ctx.name() == alias {
-                return record(from: ctx, defaultController: defaultController)
-            }
+        if let context = allContexts().first(where: { $0.name() == alias }) {
+            return record(from: context, defaultController: defaultController)
         }
         return SkipZitiIdentityRecord(
             alias: alias,
@@ -454,6 +420,16 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
         serviceCacheLock.lock()
         defer { serviceCacheLock.unlock() }
         return serviceCache[alias]?.count ?? 0
+    }
+
+    private func allContexts() -> [CoreZitiContext] {
+        var contexts: [CoreZitiContext] = []
+        CoreZitiSDK.getContexts().forEach { element in
+            if let context = element as? CoreZitiContext {
+                contexts.append(context)
+            }
+        }
+        return contexts
     }
 }
 #elseif !SKIP_BRIDGE
