@@ -1,2 +1,9 @@
-skip:
-  mode: native
+# Skip test module configuration mirroring other Skip examples.
+build:
+  contents:
+    - block: 'dependencies'
+      contents:
+        - 'api(project(":SkipLib"))'
+        - 'api(project(":SkipFoundation"))'
+        - 'testImplementation(project(":SkipUnit"))'
+        - 'androidTestImplementation(project(":SkipUnit"))'

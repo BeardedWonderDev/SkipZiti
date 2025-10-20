@@ -54,7 +54,7 @@ final class ServiceDescriptorTests: XCTestCase {
             name: "Demo",
             identifier: "svc",
             isEncrypted: false,
-            permissions: .init(canDial: true, canBind: false),
+            permissions: SkipZitiServicePermissions(canDial: true, canBind: false),
             intercepts: [],
             postureChecks: [],
             attributes: [:]
