@@ -32,7 +32,11 @@ let package = Package(
         .testTarget(
             name: "SkipZitiTests",
             dependencies: [
-                "SkipZiti"
+                "SkipZiti",
+                .product(name: "SkipTest", package: "skip")
+            ],
+            plugins: [
+                .plugin(name: "skipstone", package: "skip")
             ]
         )
     ]

@@ -105,9 +105,8 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
 
     public func revoke(alias: String) async throws {
         let iterator = CoreZitiSDK.getContexts().iterator()
-        var current = iterator
-        while current.hasNext() {
-            if let ctx = current.next(), ctx.name() == alias {
+        while iterator.hasNext() {
+            if let ctx = iterator.next(), ctx.name() == alias {
                 AndroidZitiSDK.deleteIdentity(ctx)
                 let removedDescriptors = detachServiceObserver(forAlias: alias)
                 if !removedDescriptors.isEmpty {
@@ -148,9 +147,8 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
 
     private func attachServiceObservers(defaultController: URL) {
         let iterator = CoreZitiSDK.getContexts().iterator()
-        var current = iterator
-        while current.hasNext() {
-            if let ctx = current.next() {
+        while iterator.hasNext() {
+            if let ctx = iterator.next() {
                 attachServiceObserver(for: ctx, defaultController: defaultController)
             }
         }
@@ -188,9 +186,8 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
 
     private func context(forAlias alias: String) -> CoreZitiContext? {
         let iterator = CoreZitiSDK.getContexts().iterator()
-        var current = iterator
-        while current.hasNext() {
-            if let ctx = current.next(), ctx.name() == alias {
+        while iterator.hasNext() {
+            if let ctx = iterator.next(), ctx.name() == alias {
                 return ctx
             }
         }
@@ -198,11 +195,10 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
     }
 
     private func currentRecords(defaultController: URL) -> [SkipZitiIdentityRecord] {
-        let iterator = CoreZitiSDK.getContexts().iterator()
         var records: [SkipZitiIdentityRecord] = []
-        var current = iterator
-        while current.hasNext() {
-            if let ctx = current.next() {
+        let iterator = CoreZitiSDK.getContexts().iterator()
+        while iterator.hasNext() {
+            if let ctx = iterator.next() {
                 records.append(record(from: ctx, defaultController: defaultController))
             }
         }
@@ -395,9 +391,8 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
 
     private func record(forAlias alias: String, defaultController: URL) -> SkipZitiIdentityRecord {
         let iterator = CoreZitiSDK.getContexts().iterator()
-        var current = iterator
-        while current.hasNext() {
-            if let ctx = current.next(), ctx.name() == alias {
+        while iterator.hasNext() {
+            if let ctx = iterator.next(), ctx.name() == alias {
                 return record(from: ctx, defaultController: defaultController)
             }
         }

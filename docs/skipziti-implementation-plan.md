@@ -19,11 +19,11 @@ Prepared October 19, 2025 for the SkipZiti initiative. This document synthesizes
 ---
 
 ## 2.1 Current Status (October 19, 2025)
-- **Shared Layer:** `SkipZitiConfiguration`, `SkipZitiClient`, and an in-memory identity store are implemented. The client accepts bridge implementations and streams events via `AsyncStream`.
-- **Apple Bridge:** `ZitiSwiftBridge` boots the official OpenZiti Swift SDK, listens for context/service events, and supports enrollment through `Ziti.enroll`. *Open items:* expose richer service/tunnel metadata, posture callbacks, and automated tests once more native scenarios are available.
-- **Android Bridge:** `ZitiAndroidBridge` (compiled under `SKIP`) wraps `org.openziti.android.Ziti`, handles identity enrollment/removal, and emits shared events. *Open items:* capture tunnel/service updates, improve alias handling, and add Android smoke tests.
-- **Build & Tests:** `swift test` and `skip android build` now succeed against the new structure. Test coverage is intentionally minimal (one guard test) until additional behaviors land.
-- **Known TODOs/Placeholders:** Diagnostics UI, tunnel APIs, posture telemetry, persistent identity stores, and parity-focused tests are outstanding. The Apple bridge currently expects `metadata["identityFilePath"]` (and optionally `identityOutputDirectory`) until dynamic identity management is wired.
+- **Shared Layer:** `SkipZitiConfiguration`, `SkipZitiClient`, an in-memory identity store, and new service/posture descriptors (`SkipZitiServiceDescriptor`, `SkipZitiServiceUpdate`, `SkipZitiPostureQueryEvent`, `SkipZitiReportedError`) are live. The client streams `AsyncStream<SkipZitiClientEvent>` updates and persists identities when a store is injected, but no persistent store or caching beyond memory exists.
+- **Apple Bridge:** `ZitiSwiftBridge` now surfaces OpenZiti service metadata, emits posture callbacks via `ZitiPostureChecks`, and raises structured error events. Enrollment and ready flows run end-to-end, yet there are no automated bridge-specific tests and no Skip parity coverage.
+- **Android Bridge:** `ZitiAndroidBridge` injects service/tunnel metadata, normalizes status fields, and attaches `AsyncStream` observers for context events. Identity enrollment/removal works locally, but the Skip parity build currently fails during Kotlin transpilation because our Swift dictionaries/iterators do not translate cleanly to `Map`/`Iterator` on the Kotlin side. No Gradle smoke tests run yet.
+- **Build & Tests:** `swift build` and `skip android build` succeed. `swift test` and `skip test` both fail in the transpiled Kotlin step (`:SkipZiti:compileDebugKotlin`) due to the bridging gaps highlighted above. XCTest coverage remains limited to guard/descriptor tests.
+- **Known TODOs/Placeholders:** Fix Skip bridging compatibility (dictionary→map conversions, iterator usage, URI conversions), add unit/parity tests for both bridges, re-introduce diagnostics UI, implement tunnel APIs, posture telemetry, persistent identity stores, and address toolkit gaps. Apple still requires `metadata["identityFilePath"]` (and optionally `identityOutputDirectory`) until dynamic identity management lands.
 
 ---
 
@@ -81,11 +81,13 @@ Prepared October 19, 2025 for the SkipZiti initiative. This document synthesizes
 ## 5. Core Data & API Schema
 
 ### 5.1 Swift Types (Current Codebase)
-- `struct SkipZitiConfiguration`: Controller URL, desired log level, and arbitrary metadata for bridge-specific configuration (for example, Apple identity file paths).
-- `protocol SkipZitiPlatformBridge`: Contract for platform integrations (`start/shutdown/enroll/revoke/cachedIdentities`). Bridges wrap the official OpenZiti SDKs.
-- `final class SkipZitiClient`: Shared orchestrator that wires an injected bridge to the shared event stream and optional identity storage.
-- `struct SkipZitiIdentityRecord`: Canonical identity metadata surfaced back to callers (alias, controller URL, fingerprint, platform alias, arbitrary metadata).
-- `enum SkipZitiClientEvent`: Shared event model (`starting`, `ready`, `identityAdded`, `identityRemoved`, `statusMessage`, `stopped`).
+- `struct SkipZitiConfiguration`: Controller URL, desired log level, optional metadata dictionary (nil-safe for Skip bridging), used to pass identity file paths and posture hints into bridges.
+- `protocol SkipZitiPlatformBridge`: Contract for platform integrations (`start/shutdown/enroll/revoke/cachedIdentities`). Each bridge wraps the official OpenZiti SDKs and is responsible for emitting `SkipZitiClientEvent`s.
+- `final class SkipZitiClient`: Shared orchestrator that injects a bridge, exposes `AsyncStream` events, and persists identities when a store is supplied.
+- `struct SkipZitiIdentityRecord`: Canonical identity metadata (alias, controller URL, fingerprint, optional platform alias/metadata) with default enrollment timestamp handling.
+- `enum SkipZitiClientEvent`: Shared event model (`starting`, `ready`, `identityAdded`, `identityRemoved`, `statusMessage`, `serviceUpdate`, `postureEvent`, `errorReported`, `stopped`) supporting richer telemetry.
+- `struct SkipZitiServiceDescriptor` / `SkipZitiServiceUpdate`: Cross-platform service catalog describing intercepts, permissions, posture requirements, and update deltas.
+- `struct SkipZitiPostureQueryEvent` / `SkipZitiReportedError`: Standard payloads for posture callbacks and surfaced bridge/runtime errors.
 
 ### 5.2 Example: Bootstrap & Event Handling
 ```swift
@@ -145,18 +147,18 @@ gradle:
 1. Receive JWT input (file, deep link, provisioning API).
 2. Application calls `SkipZitiClient.enroll(jwt:alias:)`.
 3. The active bridge performs enrollment:
-   - **Apple (current implementation):** `ZitiSwiftBridge` writes the JWT to disk, invokes `Ziti.enroll`, persists identity metadata, and optionally exports `.zid` files if `identityOutputDirectory` metadata is supplied.
-   - **Android (current implementation):** `ZitiAndroidBridge` forwards the JWT to `org.openziti.android.Ziti.enrollZiti`, relying on the upstream SDK to persist into AndroidKeyStore and emitting identity-added events.
-4. The shared client converts bridge results into `SkipZitiIdentityRecord` instances, optionally persists them via the configured identity store, and emits `.identityAdded` events.
-5. **TODO:** Surface posture outcomes/errors uniformly and support persistent stores beyond the in-memory helper.
+   - **Apple (current implementation):** `ZitiSwiftBridge` writes the JWT to disk, invokes `Ziti.enroll`, publishes `.identityAdded`, and optionally exports `.zid` files when `metadata["identityOutputDirectory"]` is supplied.
+   - **Android (current implementation):** `ZitiAndroidBridge` forwards the JWT to `org.openziti.android.Ziti.enrollZiti`, relying on AndroidKeyStore persistence and emitting LiveData-backed `.identityAdded` events.
+4. The shared client converts bridge results into `SkipZitiIdentityRecord` instances, persists them via the configured identity store, and emits `.identityAdded`.
+5. **TODO:** Harden storage backends (beyond in-memory), reconcile Android alias naming, and add enrollment smoke tests that run under Skip/Gradle.
 
 ### 6.2 Client Bootstrap & Event Flow
-1. Application boots the client via `SkipZiti.bootstrap(...)`, injecting a platform bridge.
+1. Application boots the client via `SkipZiti.bootstrap(...)`, injecting a platform bridge and optional store.
 2. The bridge initializes the upstream SDK:
-   - **Apple:** `ZitiSwiftBridge` loads an existing identity (`identityFilePath`), calls `Ziti.runAsync`, and forwards context/service events into the shared event stream.
-   - **Android:** `ZitiAndroidBridge` calls `org.openziti.android.Ziti.init`, observes LiveData identity events, and emits `.ready`, `.identityAdded`, and `.identityRemoved` events.
-3. Events flow through `SkipZitiClient.events` for consumers (SwiftUI/Compose, diagnostics, etc.).
-4. **TODO:** Extend bridges to expose tunnel/service catalogs, posture callbacks, and actionable telemetry.
+   - **Apple:** `ZitiSwiftBridge` loads `metadata["identityFilePath"]`, calls `Ziti.runAsync` with posture callbacks, and emits `.ready`, `.serviceUpdate`, `.postureEvent`, and `.statusMessage` events.
+   - **Android:** `ZitiAndroidBridge` calls `org.openziti.android.Ziti.init`, attaches `AsyncStream` observers for service updates, and emits `.ready`, `.serviceUpdate`, `.postureEvent`, `.errorReported`, `.identityAdded`, `.identityRemoved`.
+3. Events flow through `SkipZitiClient.events` and are consumed by platform UIs / diagnostics.
+4. **Current Blocker:** Skip parity builds fail to transpile some Swift collections/iterators into Kotlin (`Map<String,String>`, `Iterator` APIs). The event surface compiles for iOS but is unusable on the Kotlin side until we correct bridging-friendly patterns.
 
 ### 6.3 Diagnostics & Telemetry (Planned)
 1. Structured logging hooks and telemetry aggregation will be layered on top of bridge events once tunnel/service data is exposed.
@@ -177,14 +179,14 @@ gradle:
 - Outputs: repository structure, initial build badge, developer setup guide.
 
 ### Phase 2 – Apple Bridge Integration **[IN PROGRESS]**
-- Commands: `swift test`.
-- Completed: `ZitiSwiftBridge` boots `Ziti.runAsync`, emits shared events, supports enrollment/export of identities.
-- Remaining: richer service/tunnel data, posture callbacks, improved error propagation, automated tests, documentation for metadata usage.
+- Commands: `swift test`, forthcoming `skip test` once bridging is stable.
+- Completed: `ZitiSwiftBridge` boots `Ziti.runAsync`, emits service updates, posture callbacks, and structured errors; enrollment/export flows working.
+- Remaining: automate bridge-specific tests (unit + integration), ensure Skip parity (no Kotlin output required but we need coverage guarding Swift-only behaviour), document posture metadata contract, and add resilience for missing metadata.
 
-### Phase 3 – Android Bridge Integration **[IN PROGRESS]**
-- Commands: `skip android build`, (future) `skip test` instrumentation suites.
-- Completed: `ZitiAndroidBridge` wraps `org.openziti.android.Ziti`, handles identity lifecycle, Gradle dependencies aligned.
-- Remaining: tunnel/service events, alias/status normalization, Android smoke tests, telemetry hooks.
+### Phase 3 – Android Bridge Integration **[IN PROGRESS – BLOCKED]**
+- Commands: `skip android build` (passes), `skip test` (fails).
+- Completed: `ZitiAndroidBridge` wraps `org.openziti.android.Ziti`, streams service updates via `AsyncStream`, enriches identity metadata, and tracks posture/status.
+- Blockers: Kotlin transpilation fails on Swift dictionaries/iterators/URI conversions; until we adopt Skip-friendly collection helpers the Gradle harness cannot run. After that, add Android smoke tests, alias normalization, telemetry hooks, and ensure parity with Apple’s event surface.
 
 ### Phase 4 – Shared Services & UI **[NOT STARTED]**
 - Planned: add shared tunnel abstractions, diagnostics UI, and example app flows once bridge data is complete.
@@ -307,6 +309,8 @@ jobs:
 ---
 
 ## 12. Next Actions
-1. Execute `skip checkup --native` and capture results in project log.
-2. Scaffold the SkipZiti package with `skip init --native-model SkipZiti SkipZiti`, commit baseline structure.
-3. Implement identity enrollment actor skeleton and add initial unit tests before proceeding to tunnel APIs.
+1. **Resolve Skip bridging failures:** Replace dictionary/iterator patterns in `SharedTypes` and `ZitiAndroidBridge` with Skip-compatible helpers so Kotlin transpilation succeeds (`:SkipZiti:compileDebugKotlin`).
+2. **Restore parity pipeline:** Once bridging compiles, re-run and stabilize `skip test`, including Gradle harness execution under `XCSkipTests`.
+3. **Add automated bridge coverage:** Introduce Swift unit tests for Apple service/posture emission and Android metadata mapping; follow up with Gradle/Robolectric smoke suites.
+4. **Document metadata contracts:** Capture posture and identity metadata requirements (e.g., `identityFilePath`, posture hints) in docs and inline comments.
+5. **Plan persistent storage & diagnostics:** Design follow-up stories for secure identity storage beyond memory and the deferred diagnostics UI once the event surface is stable.

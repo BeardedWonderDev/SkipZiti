@@ -14,7 +14,7 @@ public enum SkipZiti {
         identityName: String,
         controllerURL: URL,
         logLevel: SkipZitiLogLevel = .info,
-        metadata: [String: String] = [:],
+        metadata: [String: String]? = nil,
         identityStore: (any SkipZitiIdentityStore)? = nil
     ) async throws -> SkipZitiClient {
         let configuration = SkipZitiConfiguration(controllerURL: controllerURL, logLevel: logLevel, metadata: metadata)
@@ -28,7 +28,7 @@ public enum SkipZiti {
         controllerURL: URL,
         logLevel: SkipZitiLogLevel = .info,
         seamless: Bool = true,
-        metadata: [String: String] = [:],
+        metadata: [String: String]? = nil,
         identityStore: (any SkipZitiIdentityStore)? = nil
     ) async throws -> SkipZitiClient {
         let configuration = SkipZitiConfiguration(controllerURL: controllerURL, logLevel: logLevel, metadata: metadata)

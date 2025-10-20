@@ -20,10 +20,10 @@ public struct SkipZitiConfiguration: Sendable {
     public var logLevel: SkipZitiLogLevel
     public var metadata: [String: String]
 
-    public init(controllerURL: URL, logLevel: SkipZitiLogLevel = .info, metadata: [String: String] = [:]) {
+    public init(controllerURL: URL, logLevel: SkipZitiLogLevel = .info, metadata: [String: String]? = nil) {
         self.controllerURL = controllerURL
         self.logLevel = logLevel
-        self.metadata = metadata
+        self.metadata = metadata ?? [:]
     }
 }
 
@@ -45,16 +45,16 @@ public struct SkipZitiIdentityRecord: Sendable, Equatable, Hashable {
         alias: String,
         controllerURL: URL,
         fingerprint: String,
-        enrolledAt: Date = .now,
+        enrolledAt: Date? = nil,
         platformAlias: String? = nil,
-        metadata: [String: String] = [:]
+        metadata: [String: String]? = nil
     ) {
         self.alias = alias
         self.controllerURL = controllerURL
         self.fingerprint = fingerprint
-        self.enrolledAt = enrolledAt
+        self.enrolledAt = enrolledAt ?? Date()
         self.platformAlias = platformAlias
-        self.metadata = metadata
+        self.metadata = metadata ?? [:]
     }
 }
 
@@ -172,7 +172,7 @@ public struct SkipZitiServiceDescriptor: Sendable, Equatable {
         permissions: SkipZitiServicePermissions,
         intercepts: [SkipZitiServiceIntercept],
         postureChecks: [SkipZitiPostureCheckSet],
-        attributes: [String: String] = [:]
+        attributes: [String: String]? = nil
     ) {
         self.name = name
         self.identifier = identifier
@@ -180,7 +180,7 @@ public struct SkipZitiServiceDescriptor: Sendable, Equatable {
         self.permissions = permissions
         self.intercepts = intercepts
         self.postureChecks = postureChecks
-        self.attributes = attributes
+        self.attributes = attributes ?? [:]
     }
 }
 
@@ -302,7 +302,7 @@ public struct SkipZitiServiceSummary: Sendable, Equatable {
         permFlags: Int64,
         intercepts: [Intercept],
         postureChecks: [SkipZitiPostureCheckSet],
-        attributes: [String: String] = [:]
+        attributes: [String: String]? = nil
     ) {
         self.name = name
         self.identifier = identifier
@@ -310,7 +310,7 @@ public struct SkipZitiServiceSummary: Sendable, Equatable {
         self.permFlags = permFlags
         self.intercepts = intercepts
         self.postureChecks = postureChecks
-        self.attributes = attributes
+        self.attributes = attributes ?? [:]
     }
 }
 
