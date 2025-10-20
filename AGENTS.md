@@ -1,6 +1,33 @@
-# Project Agents
+# Repository Guidelines
 
-This file provides guidance and memory for Codex CLI.
+## Project Structure & Module Organization
+- `Sources/SkipZiti/` contains runtime code. Bridges live under `Bridge/`, shared models in `Shared/`, Skip configuration in `Skip/`, and `SkipZiti.swift` wires the public API.
+- `Tests/SkipZitiTests/` holds XCTest suites plus parity harness shims (`XCSkipTests.swift`). Android-transpiled assets are generated into `.build/plugins/…/skipstone`.
+- `docs/` tracks architecture notes and the implementation plan — update it whenever behaviour or status changes.
+
+## Build, Test, and Development Commands
+- `swift build` — compile Apple targets and refresh Skip transpilation outputs; run this after editing Swift sources.
+- `swift test` — execute XCTest; currently fails once the Skip transpiler reaches the Kotlin step. Capture logs if you are investigating.
+- `skip android build` — build the Android artefacts via Skip without running tests; use it to ensure Kotlin output still compiles.
+- `skip test --plain` — run Swift + Kotlin parity tests. Expected to fail today; use the output for debugging bridging regressions.
+
+## Coding Style & Naming Conventions
+- Swift code: 4-space indentation, `UpperCamelCase` types, `lowerCamelCase` members. Prefer `async`/`await` and `Sendable` models.
+- Avoid directly using raw dictionaries/iterators in bridge code; wrap them in helper functions so Skip can map them to Kotlin collections.
+- Keep public API surface in `SkipZiti.swift` minimal and documented with doc comments.
+
+## Testing Guidelines
+- Write XCTest cases under `Tests/SkipZitiTests/`. Name files `<Feature>Tests.swift`.
+- When adding Gradle/Robolectric coverage, extend `XCSkipTests` so `skip test` can dispatch your suite.
+- Record known failures (e.g., Kotlin transpilation) in commit messages or PR notes until resolved.
+
+## Commit & Pull Request Guidelines
+- Follow the existing history style: short, imperative titles (e.g., “Fix Skip bridging for service maps”), optional detail in body.
+- Every code change should mention relevant docs/test updates in the PR description and link to tracking issues.
+- Include terminal output for `swift build`, `swift test`, and `skip android build`; if tests fail for known reasons, explain how your change impacts the failure.
+
+## Security & Configuration Tips
+- Never commit controller certificates, JWTs, or Skip license keys. Use environment variables (`identityFilePath`, `posture.*`) for sensitive metadata.
 
 <!-- BEGIN: BMAD-AGENTS -->
 # BMAD-METHOD Agents and Tasks
