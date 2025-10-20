@@ -203,19 +203,19 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
 
         var attributes = SkipZitiStringMap()
         if let client = service.tunnelClientConfigV1, let encoded = encodeAsJSON(client) {
-            attributes.setValue(encoded, forKey: "tunnelClientConfig")
+            attributes.merge(SkipZitiStringMap(dictionary: ["tunnelClientConfig": encoded]))
         }
         if let server = service.tunnelServerConfigV1, let encoded = encodeAsJSON(server) {
-            attributes.setValue(encoded, forKey: "tunnelServerConfig")
+            attributes.merge(SkipZitiStringMap(dictionary: ["tunnelServerConfig": encoded]))
         }
         if let url = service.urlClientConfigV1, let encoded = encodeAsJSON(url) {
-            attributes.setValue(encoded, forKey: "urlClientConfig")
+            attributes.merge(SkipZitiStringMap(dictionary: ["urlClientConfig": encoded]))
         }
         if let host = service.hostConfigV1, let encoded = encodeAsJSON(host) {
-            attributes.setValue(encoded, forKey: "hostConfig")
+            attributes.merge(SkipZitiStringMap(dictionary: ["hostConfig": encoded]))
         }
         if let raw = encodeAsJSON(service) {
-            attributes.setValue(raw, forKey: "rawService")
+            attributes.merge(SkipZitiStringMap(dictionary: ["rawService": raw]))
         }
 
         let summary = SkipZitiServiceSummary(
@@ -282,8 +282,10 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
             defer { serviceCacheLock.unlock() }
             let count = serviceCache.count
             var map = SkipZitiStringMap()
-            map.setValue(identityName, forKey: "bridgeIdentityName")
-            map.setValue("\(count)", forKey: "knownServiceCount")
+            map.merge(SkipZitiStringMap(dictionary: [
+                "bridgeIdentityName": identityName,
+                "knownServiceCount": "\(count)"
+            ]))
             return map
         }()
 

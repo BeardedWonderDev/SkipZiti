@@ -69,15 +69,7 @@ public struct SkipZitiStringMap: Sendable, Equatable, Hashable {
         storage[key]
     }
 
-    public mutating func setValue(_ value: String?, forKey key: String) {
-        if let value {
-            storage[key] = value
-        } else {
-            storage.removeValue(forKey: key)
-        }
-    }
-
-    public mutating func removeValue(forKey key: String) {
+    public mutating func remove(_ key: String) {
         storage.removeValue(forKey: key)
     }
 
@@ -111,6 +103,7 @@ public struct SkipZitiConfiguration: Sendable {
     }
 
     #if !SKIP
+    @_disfavoredOverload
     public init(controllerURL: URL, logLevel: SkipZitiLogLevel = .info, metadata: [String: String]? = nil) {
         self.init(controllerURL: controllerURL, logLevel: logLevel, metadata: SkipZitiStringMap(dictionary: metadata ?? [:]))
     }

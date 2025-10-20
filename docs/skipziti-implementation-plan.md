@@ -22,7 +22,7 @@ Prepared October 19, 2025 for the SkipZiti initiative. This document synthesizes
 - **Shared Layer:** `SkipZitiConfiguration`, `SkipZitiClient`, an in-memory identity store, and new service/posture descriptors (`SkipZitiServiceDescriptor`, `SkipZitiServiceUpdate`, `SkipZitiPostureQueryEvent`, `SkipZitiReportedError`) are live. The client streams `AsyncStream<SkipZitiClientEvent>` updates and persists identities when a store is injected, but no persistent store or caching beyond memory exists.
 - **Apple Bridge:** `ZitiSwiftBridge` now surfaces OpenZiti service metadata, emits posture callbacks via `ZitiPostureChecks`, and raises structured error events. Enrollment and ready flows run end-to-end, yet there are no automated bridge-specific tests and no Skip parity coverage.
 - **Android Bridge:** `ZitiAndroidBridge` injects service/tunnel metadata, normalizes status fields, and attaches `AsyncStream` observers for context events. Identity enrollment/removal works locally, but the Skip parity build currently fails during Kotlin transpilation because our Swift dictionaries/iterators do not translate cleanly to `Map`/`Iterator` on the Kotlin side. No Gradle smoke tests run yet.
-- **Build & Tests:** `swift build` and `skip android build` succeed. `swift test` and `skip test` both fail in the transpiled Kotlin step (`:SkipZiti:compileDebugKotlin`) due to the bridging gaps highlighted above. XCTest coverage remains limited to guard/descriptor tests.
+- **Build & Tests:** `swift build` now succeeds after explicitly linking the LLVM profiling runtime (`libclang_rt.profile_osx.a`). `skip android build` also succeeds. `swift test` and `skip test` still fail in the transpiled Kotlin step (`:SkipZiti:compileDebugKotlin`) due to the remaining bridging gaps highlighted above. XCTest coverage remains limited to guard/descriptor tests.
 - **Known TODOs/Placeholders:** Fix Skip bridging compatibility (dictionary→map conversions, iterator usage, URI conversions), add unit/parity tests for both bridges, re-introduce diagnostics UI, implement tunnel APIs, posture telemetry, persistent identity stores, and address toolkit gaps. Apple still requires `metadata["identityFilePath"]` (and optionally `identityOutputDirectory`) until dynamic identity management lands.
 
 ---
@@ -309,8 +309,9 @@ jobs:
 ---
 
 ## 12. Next Actions
-1. **Resolve Skip bridging failures (in progress):** Replace raw collection patterns with Skip-compatible helpers. `SharedTypes` now exposes `SkipZitiStringMap` instead of `[String: String]`; the remaining follow-up is to swap the ad-hoc Java iterators in `ZitiAndroidBridge` for Skip-aware iteration helpers so the Kotlin step clears `:SkipZiti:compileDebugKotlin`.
-2. **Restore parity pipeline:** Once bridging compiles, re-run and stabilize `skip test`, including Gradle harness execution under `XCSkipTests`.
+1. **Resolve remaining Skip bridging failures (in progress):** Dictionary usage now routes through `SkipZitiStringMap`, but the Android bridge still enumerates Java iterators directly. Replace those loops with Skip-provided collection helpers so the Kotlin transpiler accepts `ZitiAndroidBridge.swift` and clears `:SkipZiti:compileDebugKotlin`.
+2. **Restore parity pipeline:** Once the Kotlin compilation unblocks, re-run and stabilize `skip test`, including Gradle harness execution under `XCSkipTests`.
 3. **Add automated bridge coverage:** Introduce Swift unit tests for Apple service/posture emission and Android metadata mapping; follow up with Gradle/Robolectric smoke suites.
 4. **Document metadata contracts:** Capture posture and identity metadata requirements (e.g., `identityFilePath`, posture hints) in docs and inline comments.
 5. **Plan persistent storage & diagnostics:** Design follow-up stories for secure identity storage beyond memory and the deferred diagnostics UI once the event surface is stable.
+6. **Monitor Darwin toolchain linkage:** Keep the profile-runtime linker workaround in place and document any upstream Skip tooling updates that eliminate the need for manual flags.
