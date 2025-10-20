@@ -1,57 +1,39 @@
 import Foundation
 
-public typealias SkipZitiIdentityRecord = ZitiIdentityRecord
-public typealias SkipZitiIdentityPayload = ZitiIdentityPayload
-public typealias SkipZitiServiceDescriptor = ZitiServiceDescriptor
-public typealias SkipZitiClientEvent = ZitiClientEvent
-public typealias SkipZitiTunnelChannel = TunnelChannel
-
-public protocol SkipZitiControllerClient: ControllerClient {}
-
 public enum SkipZiti {
     public static func bootstrap(
+        configuration: SkipZitiConfiguration,
+        bridge: any SkipZitiPlatformBridge,
+        identityStore: (any SkipZitiIdentityStore)? = nil
+    ) async throws -> SkipZitiClient {
+        try await SkipZitiClient.bootstrap(configuration: configuration, bridge: bridge, identityStore: identityStore)
+    }
+
+    #if canImport(Ziti)
+    public static func bootstrapUsingNativeSwiftSDK(
+        identityName: String,
         controllerURL: URL,
-        identityStore: any SecureIdentityStore,
-        controller: any SkipZitiControllerClient,
-        logLevel: ZitiConfiguration.LogLevel = .info
-    ) async throws -> ZitiClient {
-        let configuration = ZitiConfiguration(
-            controllerURL: controllerURL,
-            logLevel: logLevel,
-            identityStore: identityStore
-        )
-        return try await ZitiClient.bootstrap(configuration: configuration, controller: controller)
+        logLevel: SkipZitiLogLevel = .info,
+        metadata: [String: String] = [:],
+        identityStore: (any SkipZitiIdentityStore)? = nil
+    ) async throws -> SkipZitiClient {
+        let configuration = SkipZitiConfiguration(controllerURL: controllerURL, logLevel: logLevel, metadata: metadata)
+        let bridge = ZitiSwiftBridge(identityName: identityName)
+        return try await SkipZitiClient.bootstrap(configuration: configuration, bridge: bridge, identityStore: identityStore)
     }
-}
+    #endif
 
-public final class InMemoryIdentityStore: @unchecked Sendable, SecureIdentityStore {
-    internal var storage: [String: ZitiIdentityRecord] = [:]
-    internal let lock = NSLock()
-
-    public init() {}
-
-    public func persist(identity: ZitiIdentityPayload) throws -> ZitiIdentityRecord {
-        let record = ZitiIdentityRecord(
-            alias: identity.alias,
-            controllerURL: identity.controller,
-            fingerprint: identity.certificate.base64EncodedString()
-        )
-        lock.lock()
-        storage[record.alias] = record
-        lock.unlock()
-        return record
+    #if SKIP || SKIP_BRIDGE
+    public static func bootstrapUsingAndroidSDK(
+        controllerURL: URL,
+        logLevel: SkipZitiLogLevel = .info,
+        seamless: Bool = true,
+        metadata: [String: String] = [:],
+        identityStore: (any SkipZitiIdentityStore)? = nil
+    ) async throws -> SkipZitiClient {
+        let configuration = SkipZitiConfiguration(controllerURL: controllerURL, logLevel: logLevel, metadata: metadata)
+        let bridge = ZitiAndroidBridge(seamless: seamless)
+        return try await SkipZitiClient.bootstrap(configuration: configuration, bridge: bridge, identityStore: identityStore)
     }
-
-    public func fetchIdentities() throws -> [ZitiIdentityRecord] {
-        lock.lock()
-        let values = Array(storage.values)
-        lock.unlock()
-        return values
-    }
-
-    public func deleteIdentity(withAlias alias: String) throws {
-        lock.lock()
-        storage.removeValue(forKey: alias)
-        lock.unlock()
-    }
+    #endif
 }
