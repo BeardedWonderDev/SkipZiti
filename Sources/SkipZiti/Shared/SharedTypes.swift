@@ -369,7 +369,7 @@ public struct SkipZitiPostureQueryEvent: Sendable, Equatable {
     }
 }
 
-public struct SkipZitiReportedError: Sendable, Equatable {
+public struct SkipZitiReportedError: Error, Sendable, Equatable {
     public enum Stage: String, Sendable {
         case startup
         case enrollment
@@ -386,6 +386,61 @@ public struct SkipZitiReportedError: Sendable, Equatable {
         self.message = message
         self.details = details
         self.recoverable = recoverable
+    }
+}
+
+public extension SkipZitiReportedError {
+    static func bridgeFailure(
+        from error: any Error,
+        stage: Stage,
+        defaultMessage: String,
+        recoverable: Bool,
+        defaultDetails: String? = nil
+    ) -> SkipZitiReportedError {
+        if let reported = error as? SkipZitiReportedError {
+            return reported
+        }
+
+        if let zitiError = error as? SkipZitiError {
+            switch zitiError {
+            case let .unsupportedPlatform(reason):
+                return SkipZitiReportedError(
+                    stage: .startup,
+                    message: reason,
+                    details: defaultDetails,
+                    recoverable: false
+                )
+            case let .enrollmentFailed(reason):
+                return SkipZitiReportedError(
+                    stage: .enrollment,
+                    message: reason,
+                    details: defaultDetails,
+                    recoverable: false
+                )
+            case let .storageFailure(reason):
+                return SkipZitiReportedError(
+                    stage: .runtime,
+                    message: reason,
+                    details: defaultDetails,
+                    recoverable: recoverable
+                )
+            case let .runtimeFailure(reason):
+                return SkipZitiReportedError(
+                    stage: .runtime,
+                    message: reason,
+                    details: defaultDetails,
+                    recoverable: recoverable
+                )
+            }
+        }
+
+        let details = defaultDetails ?? String(describing: error)
+        return SkipZitiReportedError(
+            stage: stage,
+            message: defaultMessage,
+            details: details,
+            recoverable: recoverable
+        )
     }
 }
 
@@ -496,11 +551,10 @@ public extension SkipZitiServiceDescriptor {
 }
 
 public protocol SkipZitiPlatformBridge: Sendable {
-    func start(configuration: SkipZitiConfiguration, emit: @escaping (SkipZitiClientEvent) -> Void) async throws
+    func start(configuration: SkipZitiConfiguration, emit: @escaping @Sendable (SkipZitiClientEvent) -> Void) async throws
     func shutdown() async
     func enroll(jwt: Data, alias: String) async throws -> SkipZitiIdentityRecord
     func revoke(alias: String) async throws
     func cachedIdentities() async throws -> [SkipZitiIdentityRecord]
 }
-
 #endif

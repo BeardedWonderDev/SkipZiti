@@ -44,29 +44,111 @@ public final class SkipZitiClient: @unchecked Sendable {
             continuation: continuation,
             identityStore: identityStore
         )
-        try await bridge.start(configuration: configuration) { event in
-            client.emit(event)
+        do {
+            try await bridge.start(configuration: configuration) { event in
+                client.emit(event)
+            }
+        } catch {
+            client.handleBridgeError(
+                error,
+                stage: .startup,
+                defaultMessage: "Failed to start SkipZiti bridge",
+                recoverable: false
+            )
+            throw error
         }
-        try await client.persistInitialIdentities()
+
+        do {
+            try await client.persistInitialIdentities()
+        } catch {
+            client.handleBridgeError(
+                error,
+                stage: .runtime,
+                defaultMessage: "Failed to cache initial SkipZiti identities",
+                recoverable: true
+            )
+            throw error
+        }
         return client
     }
 
     public func enroll(jwt: Data, alias: String) async throws -> SkipZitiIdentityRecord {
-        let record = try await bridge.enroll(jwt: jwt, alias: alias)
-        try persist(record: record)
-        return record
+        do {
+            let record = try await bridge.enroll(jwt: jwt, alias: alias)
+            do {
+                try persist(record: record)
+            } catch {
+                handleBridgeError(
+                    error,
+                    stage: .runtime,
+                    defaultMessage: "Failed to persist enrolled identity",
+                    recoverable: true
+                )
+                throw error
+            }
+            return record
+        } catch {
+            handleBridgeError(
+                error,
+                stage: .enrollment,
+                defaultMessage: "SkipZiti enrollment failed",
+                recoverable: false
+            )
+            throw error
+        }
     }
 
     public func revoke(alias: String) async throws {
-        try await bridge.revoke(alias: alias)
-        try identityStore?.delete(alias: alias)
+        do {
+            try await bridge.revoke(alias: alias)
+        } catch {
+            handleBridgeError(
+                error,
+                stage: .runtime,
+                defaultMessage: "SkipZiti revoke failed",
+                recoverable: false
+            )
+            throw error
+        }
+
+        do {
+            try identityStore?.delete(alias: alias)
+        } catch {
+            handleBridgeError(
+                error,
+                stage: .runtime,
+                defaultMessage: "Failed to remove identity from local store",
+                recoverable: true
+            )
+            throw error
+        }
     }
 
     public func cachedIdentities() async throws -> [SkipZitiIdentityRecord] {
         if let store = identityStore {
-            return try store.fetchAll()
+            do {
+                return try store.fetchAll()
+            } catch {
+                handleBridgeError(
+                    error,
+                    stage: .runtime,
+                    defaultMessage: "Failed to load cached SkipZiti identities",
+                    recoverable: true
+                )
+                throw error
+            }
         }
-        return try await bridge.cachedIdentities()
+        do {
+            return try await bridge.cachedIdentities()
+        } catch {
+            handleBridgeError(
+                error,
+                stage: .runtime,
+                defaultMessage: "Failed to fetch identities from SkipZiti bridge",
+                recoverable: true
+            )
+            throw error
+        }
     }
 
     public func shutdown() async {
@@ -95,6 +177,25 @@ public final class SkipZitiClient: @unchecked Sendable {
             continuation.finish()
             eventContinuation = nil
         }
+    }
+
+    @discardableResult
+    private func handleBridgeError(
+        _ error: Error,
+        stage: SkipZitiReportedError.Stage,
+        defaultMessage: String,
+        recoverable: Bool,
+        defaultDetails: String? = nil
+    ) -> SkipZitiReportedError {
+        let reported = SkipZitiReportedError.bridgeFailure(
+            from: error,
+            stage: stage,
+            defaultMessage: defaultMessage,
+            recoverable: recoverable,
+            defaultDetails: defaultDetails
+        )
+        emit(.errorReported(reported))
+        return reported
     }
 }
 #endif

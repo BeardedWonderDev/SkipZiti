@@ -2,7 +2,7 @@
 import Foundation
 
 #if SKIP && os(Android)
-import skip.foundation
+import SkipFoundation
 import SkipLib
 import org.openziti.android.Ziti
 import androidx.lifecycle.Observer
@@ -22,7 +22,7 @@ typealias AndroidPostureQuery = org.openziti.edge.model.PostureQuery
 public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
     private let seamless: Bool
     private var configuration: SkipZitiConfiguration?
-    private var emitEvent: ((SkipZitiClientEvent) -> Void)?
+    private var emitEvent: (@Sendable (SkipZitiClientEvent) -> Void)?
     private var observer: Observer<AndroidZitiSDK.IdentityEvent>?
     private let emitLock = NSLock()
     private var initialized = false
@@ -34,7 +34,7 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
         self.seamless = seamless
     }
 
-    public func start(configuration: SkipZitiConfiguration, emit: @escaping (SkipZitiClientEvent) -> Void) async throws {
+    public func start(configuration: SkipZitiConfiguration, emit: @escaping @Sendable (SkipZitiClientEvent) -> Void) async throws {
         let context = ProcessInfo.processInfo.androidContext
         AndroidZitiSDK.init(context, seamless: seamless)
         initialized = true
@@ -454,6 +454,7 @@ public final class ZitiAndroidBridge: SkipZitiPlatformBridge {
     public func cachedIdentities() async throws -> [SkipZitiIdentityRecord] {
         []
     }
+
 }
 #endif
 #endif

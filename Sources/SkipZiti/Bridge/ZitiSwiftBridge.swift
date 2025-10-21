@@ -8,7 +8,7 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
     private let identityName: String
     private var configuration: SkipZitiConfiguration?
     private var ziti: Ziti?
-    private var emitEvent: ((SkipZitiClientEvent) -> Void)?
+    private var emitEvent: (@Sendable (SkipZitiClientEvent) -> Void)?
     private let emitLock = NSLock()
     private let serviceCacheLock = NSLock()
     private var serviceCache: [String: SkipZitiServiceDescriptor] = [:]
@@ -19,7 +19,7 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
         self.identityName = identityName
     }
 
-    public func start(configuration: SkipZitiConfiguration, emit: @escaping (SkipZitiClientEvent) -> Void) async throws {
+    public func start(configuration: SkipZitiConfiguration, emit: @escaping @Sendable (SkipZitiClientEvent) -> Void) async throws {
         guard let identityPath = configuration.metadata.value(forKey: "identityFilePath") else {
             throw SkipZitiError.runtimeFailure(reason: "metadata[identityFilePath] is required for the Swift bridge")
         }
@@ -65,6 +65,31 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
         }
     }
 
+    #if SKIP
+    /* SKIP INSERT: override */
+    /* SKIP INSERT: override */
+    public func callback_start(
+        configuration: SkipZitiConfiguration,
+        emit: @escaping @Sendable (SkipZitiClientEvent) -> Void,
+        f_return_callback: @escaping @Sendable (Error?) -> Void
+    ) {
+        Task {
+            do {
+                try await start(configuration: configuration, emit: emit)
+                f_return_callback(nil)
+            } catch {
+                let reported = SkipZitiReportedError.bridgeFailure(
+                    from: error,
+                    stage: .startup,
+                    defaultMessage: "Failed to start SkipZiti Swift bridge",
+                    recoverable: false
+                )
+                f_return_callback(reported)
+            }
+        }
+    }
+    #endif
+
     public func enroll(jwt: Data, alias: String) async throws -> SkipZitiIdentityRecord {
         guard let configuration else {
             throw SkipZitiError.enrollmentFailed(reason: "Swift bridge has not been bootstrapped")
@@ -101,6 +126,30 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
         return record
     }
 
+    #if SKIP
+    /* SKIP INSERT: override */
+    public func callback_enroll(
+        jwt: Data,
+        alias: String,
+        f_return_callback: @escaping @Sendable (SkipZitiIdentityRecord?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                let record = try await enroll(jwt: jwt, alias: alias)
+                f_return_callback(record, nil)
+            } catch {
+                let reported = SkipZitiReportedError.bridgeFailure(
+                    from: error,
+                    stage: .enrollment,
+                    defaultMessage: "Failed to enroll SkipZiti identity on Apple platforms",
+                    recoverable: false
+                )
+                f_return_callback(nil, reported)
+            }
+        }
+    }
+    #endif
+
     public func revoke(alias: String) async throws {
         let keychain = ZitiKeychain(tag: alias)
         if let error = keychain.deleteKeyPair() {
@@ -112,16 +161,69 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
         publish(.identityRemoved(alias))
     }
 
+    #if SKIP
+    /* SKIP INSERT: override */
+    public func callback_revoke(alias: String, f_return_callback: @escaping @Sendable (Error?) -> Void) {
+        Task {
+            do {
+                try await revoke(alias: alias)
+                f_return_callback(nil)
+            } catch {
+                let reported = SkipZitiReportedError.bridgeFailure(
+                    from: error,
+                    stage: .runtime,
+                    defaultMessage: "Failed to revoke SkipZiti identity on Apple platforms",
+                    recoverable: false
+                )
+                f_return_callback(reported)
+            }
+        }
+    }
+    #endif
+
     public func shutdown() async {
         postureChecks = nil
         ziti?.shutdown()
         publish(.stopped)
     }
 
+    #if SKIP
+    /* SKIP INSERT: override */
+    /* SKIP INSERT: override */
+    public func callback_shutdown(_ f_return_callback: @escaping @Sendable () -> Void) {
+        Task {
+            await shutdown()
+            f_return_callback()
+        }
+    }
+    #endif
+
     public func cachedIdentities() async throws -> [SkipZitiIdentityRecord] {
         guard let ziti = ziti, let configuration = configuration else { return [] }
         return [record(from: ziti.id, controllerURL: configuration.controllerURL)]
     }
+
+    #if SKIP
+    /* SKIP INSERT: override */
+    public func callback_cachedIdentities(
+        f_return_callback: @escaping @Sendable ([SkipZitiIdentityRecord]?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                let identities = try await cachedIdentities()
+                f_return_callback(identities, nil)
+            } catch {
+                let reported = SkipZitiReportedError.bridgeFailure(
+                    from: error,
+                    stage: .runtime,
+                    defaultMessage: "Failed to fetch SkipZiti identities on Apple platforms",
+                    recoverable: true
+                )
+                f_return_callback(nil, reported)
+            }
+        }
+    }
+    #endif
 
     private func handle(event: ZitiEvent) {
         if let context = event.contextEvent {
@@ -456,19 +558,118 @@ public final class ZitiSwiftBridge: SkipZitiPlatformBridge {
         throw SkipZitiError.unsupportedPlatform(reason: "OpenZiti Swift SDK is not linked in this build")
     }
 
+    #if SKIP
+    public func callback_start(
+        configuration: SkipZitiConfiguration,
+        emit: @escaping (SkipZitiClientEvent) -> Void,
+        f_return_callback: @escaping @Sendable (Error?) -> Void
+    ) {
+        Task {
+            do {
+                try await start(configuration: configuration, emit: emit)
+                f_return_callback(nil)
+            } catch {
+                let reported = SkipZitiReportedError.bridgeFailure(
+                    from: error,
+                    stage: .startup,
+                    defaultMessage: "OpenZiti Swift bridge is unavailable in this build",
+                    recoverable: false
+                )
+                f_return_callback(reported)
+            }
+        }
+    }
+    #endif
+
     public func shutdown() async {}
+
+    #if SKIP
+    public func callback_shutdown(_ f_return_callback: @escaping @Sendable () -> Void) {
+        Task {
+            await shutdown()
+            f_return_callback()
+        }
+    }
+    #endif
 
     public func enroll(jwt: Data, alias: String) async throws -> SkipZitiIdentityRecord {
         throw SkipZitiError.unsupportedPlatform(reason: "OpenZiti Swift SDK is not linked in this build")
     }
 
+    #if SKIP
+    /* SKIP INSERT: override */
+    public func callback_enroll(
+        jwt: Data,
+        alias: String,
+        f_return_callback: @escaping @Sendable (SkipZitiIdentityRecord?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                let record = try await enroll(jwt: jwt, alias: alias)
+                f_return_callback(record, nil)
+            } catch {
+                let reported = SkipZitiReportedError.bridgeFailure(
+                    from: error,
+                    stage: .enrollment,
+                    defaultMessage: "OpenZiti Swift bridge cannot enroll identities in this build",
+                    recoverable: false
+                )
+                f_return_callback(nil, reported)
+            }
+        }
+    }
+    #endif
+
     public func revoke(alias: String) async throws {
         throw SkipZitiError.unsupportedPlatform(reason: "OpenZiti Swift SDK is not linked in this build")
     }
 
+    #if SKIP
+    /* SKIP INSERT: override */
+    public func callback_revoke(alias: String, f_return_callback: @escaping @Sendable (Error?) -> Void) {
+        Task {
+            do {
+                try await revoke(alias: alias)
+                f_return_callback(nil)
+            } catch {
+                let reported = SkipZitiReportedError.bridgeFailure(
+                    from: error,
+                    stage: .runtime,
+                    defaultMessage: "OpenZiti Swift bridge cannot revoke identities in this build",
+                    recoverable: false
+                )
+                f_return_callback(reported)
+            }
+        }
+    }
+    #endif
+
     public func cachedIdentities() async throws -> [SkipZitiIdentityRecord] {
         []
     }
+
+    #if SKIP
+    /* SKIP INSERT: override */
+    public func callback_cachedIdentities(
+        f_return_callback: @escaping @Sendable ([SkipZitiIdentityRecord]?, Error?) -> Void
+    ) {
+        Task {
+            do {
+                let identities = try await cachedIdentities()
+                f_return_callback(identities, nil)
+            } catch {
+                let reported = SkipZitiReportedError.bridgeFailure(
+                    from: error,
+                    stage: .runtime,
+                    defaultMessage: "OpenZiti Swift bridge cannot enumerate identities in this build",
+                    recoverable: true
+                )
+                f_return_callback(nil, reported)
+            }
+        }
+    }
+    #endif
+
 }
 #endif
 #endif
